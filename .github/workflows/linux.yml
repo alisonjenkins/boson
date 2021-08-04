@@ -1,0 +1,46 @@
+name: Linux
+on:
+  release:
+    types: [published, edited]
+
+jobs:
+  build-linux-x86_64:
+    name: Linux x86_64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+
+      - uses: mad9000/actions-find-and-replace-string@2
+        with:
+            source: ${{ github.ref }}
+            find: 'BOSON_VERSION'
+            replace: ${{ github.ref }}
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v1.0.1
+        with:
+          path: target
+          key: ${{ runner.OS }}-build-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.OS }}-build-
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --all-features
+
+      - name: Archive Release
+        run: zip --junk-paths boson-linux-x86_64.zip target/release/boson
+
+      - name: Upload zip to release
+        uses: svenstaro/upload-release-action@v1-release
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: 'boson-linux-x86_64.zip'
+          asset_name: 'boson-${{ github.ref }}-linux-x86_64.zip'
+          tag: ${{ github.ref }}
